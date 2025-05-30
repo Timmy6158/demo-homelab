@@ -1,0 +1,84 @@
+# This compose file is compatible with Compose itself, it might need some
+# adjustments to run properly with stack.
+
+secrets:
+  synapse-db-password:
+    external: true
+services:
+  synapse:
+    image: docker.io/matrixdotorg/synapse:latest
+    container_name: synapse
+    # Since synapse does not retry to connect to the database, restart upon
+    # failure
+    restart: unless-stopped
+    # See the readme for a full documentation of the environment settings
+    # NOTE: You must edit homeserver.yaml to use postgres, it defaults to sqlite
+    environment:
+      - SYNAPSE_CONFIG_PATH=/data/homeserver.yaml
+      - UID=1000
+      - GID=1000
+    volumes:
+      # You may either store all the files in a local folder
+      - /mnt/swarm/matrix:/data
+      # .. or you may split this between different storage points
+      # - ./files:/data
+      # - /path/to/ssd:/data/uploads
+      # - /path/to/large_hdd:/data/media
+    networks:
+      - synapse
+      - traefik_proxy
+    depends_on:
+      - synapse-db
+    # In order to expose Synapse, remove one of the following, you might for
+    # instance expose the TLS port directly:
+    #    ports:
+    #  - 8448:8448/tcp
+    # ... or use a reverse proxy, here is an example for traefik:
+    deploy:
+      # Do not use multiple synapse, it will mess up the database
+      replicas: 1
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.synapse.entrypoints=http"
+        - "traefik.http.routers.synapse.rule=Host(`matrix.themitthome.com`) || Host(`whatever.themitthome.com`)"
+        - "traefik.http.middlewares.synapse-https-redirect.redirectscheme.scheme=https"
+        - "traefik.http.routers.synapse.middlewares=synapse-https-redirect"
+        - "traefik.http.routers.synapse-secure.entrypoints=https"
+        - "traefik.http.routers.synapse-secure.rule=Host(`matrix.themitthome.com`) || Host(`whatever.themitthome.com`)"
+        - "traefik.http.routers.synapse-secure.tls=true"
+        - "traefik.http.routers.synapse-secure.service=synapse"
+        - "traefik.http.services.synapse.loadbalancer.server.port=8008"
+        - "traefik.swarm.network=traefik_proxy"
+  synapse-db:
+    image: docker.io/postgres:15-alpine
+    secrets:
+      - synapse-db-password
+    # Change that password, of course!
+#    environment:
+#      - POSTGRES_USER=synapse_user
+#      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+#      - POSTGRES_DB=synapse
+#      # ensure the database gets created correctly
+#      # https://element-hq.github.io/synapse/latest/postgres.html#set-up-database
+#      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    environment:
+      POSTGRES_USER: synapse_user
+      POSTGRES_PASSWORD: /run/secrets/synapse-db-password
+      POSTGRES_DB: synapse
+      POSTGRES_INITDB_ARGS: --encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      # You may store the database tables in a local folder..
+      - /mnt/swarm/matrix/schemas:/var/lib/postgresql/data
+      # .. or store them on some high performance storage for better results
+      # - /path/to/ssd/storage:/var/lib/postgresql/data
+    networks:
+      - synapse
+    ports:
+      - 5432:5432
+    deploy:
+      replicas: 1
+networks:
+  synapse:
+    external: true
+  traefik_proxy:
+    external: true

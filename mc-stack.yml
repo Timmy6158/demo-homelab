@@ -1,0 +1,16 @@
+services:
+  bds:
+    image: itzg/minecraft-bedrock-server
+    environment:
+      EULA: "TRUE"
+    volumes:
+      - /mnt/swarm/mc-server/data:/data
+    stdin_open: true
+    tty: true
+    ports:
+      - target: 19132
+        published: 19132
+        protocol: udp
+        mode: ingress
+    deploy:
+      replicas: 1

@@ -1,0 +1,41 @@
+version: "3.8"
+
+services:
+
+  crowdsec:
+    image: crowdsecurity/crowdsec:v1.6.8
+    ports:
+      - target: 8080
+        published: 9876
+        protocol: tcp
+        mode: host  # host mode keeps the port bound to the host for bouncer access
+    expose:
+      - 8080  # http api for bouncers
+      - 6060  # metrics endpoint
+      - 7422  # appsec WAF
+    volumes:
+      - crowdsec_data:/var/lib/crowdsec/data
+      - crowdsec_etc:/etc/crowdsec
+      - /var/log/auth.log:/var/log/auth.log:ro
+      - /var/log/syslog:/var/log/syslog:ro
+      - /var/log/Traefik:/var/log/Traefik:ro
+    environment:
+      - GID=1000
+      - COLLECTIONS=crowdsecurity/traefik crowdsecurity/http-cve crowdsecurity/base-http-scenarios crowdsecurity/sshd crowdsecurity/linux crowdsecurity/appsec-generic-rules crowdsecurity/appsec-virtual-patching crowdsecurity/appsec-crs
+    networks:
+      - traefik_proxy
+    deploy:
+      mode: global
+      #placement:
+      #  constraints:
+      #    - node.role == manager  # Optional: run only on manager nodes
+
+volumes:
+  crowdsec_data:
+    driver: local
+  crowdsec_etc:
+    driver: local
+
+networks:
+  traefik_proxy:
+    external: true

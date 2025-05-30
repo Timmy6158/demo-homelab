@@ -1,0 +1,14 @@
+services:
+  tunnel:
+    image: cloudflare/cloudflared
+    command: tunnel run
+    networks:
+      - traefik_proxy
+    # Cannot be used in public repos!
+    environment:
+      TUNNEL_TOKEN: your_own_cloudflare_tunnel_token
+    deploy:
+      replicas: 1 # Only need one tunnel to use.
+networks:
+  traefik_proxy:
+    external: true

@@ -1,0 +1,79 @@
+secrets:
+  cf-token:
+    external: true
+  traefik-dashboard-credentials:
+    external: true
+services:
+  traefik:
+    image: traefik:v3.3 # or traefik:v3.3 to pin a version
+    secrets:
+      - cf-token # the secret at the top of this file
+      - traefik-dashboard-credentials
+    networks:
+      traefik_proxy:
+    ports:
+      - target: 80
+        published: 80
+        mode: host
+        protocol: tcp
+      - target: 443
+        published: 443
+        mode: host
+        protocol: tcp
+#      - target: 19132
+#        published: 19132
+#        mode: host
+#        protocol: udp
+     # - 10000:10000 # optional
+     # - 33073:33073 # optional
+    environment:
+#      - TRAEFIK_DASHBOARD_CREDENTIALS=/run/secrets/traefik-dashboard-credentials
+      # - CF_API_EMAIL=your@email.com # Cloudflare email
+      # - CF_DNS_API_TOKEN=YOUR-TOKEN # Cloudflare API Token
+      - CF_DNS_API_TOKEN_FILE=/run/secrets/cf-token # see https://doc.traefik.io/traefik/https/acme/#providers
+      # token file is the proper way to do it
+      # Unique node name
+    volumes:
+      - /etc/localtime:/etc/localtime
+      - /var/run/docker.sock:/var/run/docker.sock
+      - type: bind
+        source: /mnt/swarm/Traefik/config/acme.json
+        target: /acme.json
+      - type: bind
+        source: /root/swarm/Traefik/config/config.yaml
+        target: /config.yaml
+      - type: bind
+        source: /mnt/swarm/Traefik/config/traefik.yaml
+        target: /traefik.yaml
+      - /var/log/Traefik:/var/log/traefik
+    deploy:
+      mode: global
+      #placement:
+      #  constraints:
+      #    - node.role == manager
+      restart_policy:
+        condition: on-failure
+      update_config:
+        parallelism: 1
+        delay: 10s
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.traefik.entrypoints=http"
+        - "traefik.http.routers.traefik.rule=Host(`traefik-docker.themitthome.com`) || Host(`traefik.themitthome.com`)"
+        - "traefik.http.middlewares.traefik-auth.basicauth.users=user:changeme"
+        - "traefik.http.middlewares.traefik-https-redirect.redirectscheme.scheme=https"
+        - "traefik.http.middlewares.sslheader.headers.customrequestheaders.X-Forwarded-Proto=https"
+        - "traefik.http.routers.traefik.middlewares=traefik-https-redirect"
+        - "traefik.http.routers.traefik-secure.entrypoints=https"
+        - "traefik.http.routers.traefik-secure.rule=Host(`traefik-docker.themitthome.com`) || Host(`traefik.themitthome.com`)"
+        - "traefik.http.routers.traefik-secure.middlewares=traefik-auth"
+        - "traefik.http.routers.traefik-secure.tls=true"
+        - "traefik.http.routers.traefik-secure.tls.certresolver=cloudflare"
+        - "traefik.http.routers.traefik-secure.tls.domains[0].main=themitthome.com"
+        - "traefik.http.routers.traefik-secure.tls.domains[0].sans=*.themitthome.com"
+        - "traefik.http.routers.traefik-secure.service=api@internal"
+        - "traefik.swarm.network=traefik_proxy"
+        - "traefik.http.services.traefik.loadbalancer.server.port=80"
+networks:
+  traefik_proxy:
+    external: true

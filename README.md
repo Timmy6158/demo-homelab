@@ -25,13 +25,26 @@ service.
 
 Very easy to scale up or down. Meaning that adding more machines to the Swarm will be very easy.
 
+### GlusterFS
+Distributed storage
+
+Creates a volume on the hosts directory for file sharing
+
 ### Traefik
 [Doc](https://doc.traefik.io/traefik/)
 
 An http proxy and load-balancer for services.
 
-Use Case: By using Traefik with Cloudflare certificates, I can easily assign a domain to my applications. I can also leverage the load-balancer to have multiple application use the same port. The most used one would be port 80 and 443.
+Use Case: 
+- By using Traefik with Cloudflare certificates, I can easily assign a domain to my applications. I can also leverage the load-balancer to have multiple application use the same port. The most used one would be port 80 and 443.
+- Creates logs that can show Traefik info and the real client IP(Only if someone is accessing a public service through cloudflare tunnel)
+![Access-log-Example.png](./images/traefik-access-log.png)
+Note that the public IP of the client will be blurred.
 
+### Tailscale
+Mesh VPN to connect machines across the internet.
+
+## Services
 ### Crowdsec
 [Doc](https://docs.crowdsec.net/)
 
@@ -40,3 +53,13 @@ A service that has a community driven database of known malware/attacks and will
 There is a Crowdsec website that allows you to manage security engines(The crowdsec containers)
 
 Here is a very helpful [blog](https://blog.lrvt.de/configuring-crowdsec-with-traefik/#attack-simulation) on how to setup Traefik and Crowdsec.
+
+Use case: Crowdsec will read through Traefik logs to analyze any suspicious activity. 
+
+### Pihole
+
+### Grafana-Monitoring
+
+### Matrix
+
+### Portainer
